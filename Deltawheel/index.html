@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sorteo de fase de grupos</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a1424;--panel:rgb(16 30 52 / var(--pa,.9));--line:#284066;--chalk:#eef3ee;--mute:#8fa3bf;--gold:#f4c430;--r:10px}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--chalk);font:15px/1.4 Inter,system-ui,sans-serif}
+h1,h2{font-family:'Bricolage Grotesque',Inter,sans-serif;margin:0}
+h1{font-size:clamp(26px,4vw,40px);font-weight:800;letter-spacing:-.02em}
+header{padding:22px 24px 6px}
+header p{margin:4px 0 0;color:var(--mute)}
+body::before{content:'';position:fixed;inset:0;background:#000;opacity:var(--dim,.5);z-index:-1;pointer-events:none}
+main{display:grid;grid-template-columns:280px minmax(320px,1fr);gap:20px;padding:18px 24px 40px;align-items:start}
+@media(max-width:900px){main{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.panel h2{font-size:17px;margin-bottom:10px}
+label{display:block;color:var(--mute);font-size:13px;margin:10px 0 4px}
+textarea,input,select{width:100%;background:#08101e;border:1px solid var(--line);border-radius:8px;color:var(--chalk);padding:8px 10px;font:inherit}
+textarea{min-height:200px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+button{font:600 15px Inter,sans-serif;border:0;border-radius:8px;padding:10px 14px;cursor:pointer;background:var(--gold);color:#1a1500}
+button.alt{background:transparent;color:var(--chalk);border:1px solid var(--line)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.btns{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+small{color:var(--mute);display:block;margin-top:8px}
+#warn{color:#ff9d8a;font-size:13px;min-height:18px;margin-top:6px}
+.stage{display:flex;flex-direction:column;align-items:center;gap:14px}
+.wheelbox{position:relative;width:min(100%,560px);aspect-ratio:1}
+canvas{width:100%;height:100%;display:block}
+.pointer{position:absolute;left:50%;top:-6px;transform:translateX(-50%);width:0;height:0;border-left:14px solid transparent;border-right:14px solid transparent;border-top:30px solid var(--gold);filter:drop-shadow(0 2px 2px #0008);z-index:2}
+.hub{position:absolute;left:50%;top:50%;width:64px;height:64px;transform:translate(-50%,-50%);border-radius:50%;background:var(--bg);border:3px solid var(--gold);display:grid;place-items:center;font:800 13px 'Bricolage Grotesque',sans-serif;color:var(--gold);text-align:center;line-height:1}
+#status{font:700 20px 'Bricolage Grotesque',sans-serif;min-height:28px;text-align:center}
+#groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-top:6px;grid-column:1/-1}
+.group{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.group h3{margin:0;padding:8px 12px;font:800 16px 'Bricolage Grotesque',sans-serif;background:#172a4a;border-bottom:1px solid var(--line);color:var(--gold)}
+.slot{display:flex;align-items:center;gap:10px;height:44px;padding:0 12px;border-bottom:1px dashed var(--line)}
+.slot:last-child{border-bottom:0}
+.slot .ph{width:30px;height:30px;border-radius:50%;border:1px dashed var(--line);flex:none}
+.slot span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.logo{width:30px;height:30px;object-fit:contain;flex:none}
+.ini{width:30px;height:30px;border-radius:50%;background:var(--line);display:grid;place-items:center;font:700 12px Inter;flex:none}
+.fly{position:fixed;z-index:50;display:flex;align-items:center;justify-content:center;pointer-events:none;transition:left .8s cubic-bezier(.5,0,.2,1),top .8s cubic-bezier(.5,0,.2,1),width .8s,height .8s}
+.fly img,.fly .ini{width:100%;height:100%;font-size:inherit}
+.reveal{position:fixed;z-index:49;left:50%;transform:translateX(-50%);background:var(--bg);border:2px solid var(--gold);border-radius:var(--r);padding:6px 16px;font:700 18px 'Bricolage Grotesque',sans-serif;pointer-events:none}
+#cine{position:fixed;inset:0;z-index:100;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;opacity:0;pointer-events:none;transition:opacity var(--fd,.6s)}
+#cine.on{opacity:1;pointer-events:auto}
+#cine .q{position:absolute;font:800 min(30vmin,240px) 'Bricolage Grotesque',sans-serif;color:var(--gold);animation:pulse .5s infinite alternate}
+@keyframes pulse{from{transform:scale(.88);opacity:.5}to{transform:scale(1.08);opacity:1}}
+#cine .big{width:min(44vmin,340px);height:min(44vmin,340px);display:grid;place-items:center;transform:scale(0);opacity:0;filter:drop-shadow(0 0 40px #f4c430aa)}
+#cine .big img,#cine .big .ini{width:100%;height:100%;object-fit:contain;font-size:min(16vmin,120px)}
+#cine .big.show{animation:pop .7s cubic-bezier(.2,1.6,.4,1) forwards}
+@keyframes pop{to{transform:scale(1);opacity:1}}
+#cine .nm{font:800 clamp(30px,7vw,72px) 'Bricolage Grotesque',sans-serif;letter-spacing:-.02em;text-align:center;padding:0 20px;color:var(--gold);text-shadow:0 0 30px #f4c43088;opacity:0;transform:translateY(20px);transition:.5s}
+#cine .gp{font:600 clamp(18px,3vw,28px) Inter,sans-serif;color:var(--chalk);opacity:0;transition:opacity .5s}
+#cine .nm.show,#cine .gp.show{opacity:1;transform:none}
+#confetti{position:fixed;inset:0;width:100%;height:100%;z-index:101;pointer-events:none}
+.chk{display:flex;gap:8px;align-items:center;color:var(--chalk)}
+.chk input{width:auto}
+@media(prefers-reduced-motion:reduce){.fly{transition:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Sorteo de fase de grupos</h1>
+  <p>Escribe los equipos, ajusta los grupos y gira la ruleta.</p>
+</header>
+<main>
+  <section class="panel">
+    <h2>Participantes</h2>
+    <label for="list">Un equipo por línea</label>
+    <textarea id="list" spellcheck="false">Club 1
+Club 2
+Club 3
+Club 4
+Club 5
+Club 6
+Club 7
+Club 8</textarea>
+    <small>El logo se busca en <b>images/clubs/Nombre.png</b> (también .webp, .jpg, .jpeg, .svg). Para usar otro archivo: <b>Nombre | archivo.png</b></small>
+    <div class="row">
+      <div><label for="perGroup">Equipos por grupo</label><input id="perGroup" type="number" min="2" value="4"></div>
+      <div><label for="nGroups">Cantidad de grupos</label><input id="nGroups" type="number" min="1" value="2"></div>
+    </div>
+    <label for="mode">Asignación al grupo</label>
+    <select id="mode">
+      <option value="random">Grupo al azar</option>
+      <option value="order">En orden (A, B, C…)</option>
+    </select>
+    <label for="dur">Duración del giro: <span id="durv">5</span> s</label>
+    <input id="dur" type="range" min="2" max="10" value="5">
+    <label for="vol">Volumen: <span id="volv">70</span>%</label>
+    <input id="vol" type="range" min="0" max="100" value="70">
+    <label class="chk"><input id="sfx" type="checkbox" checked> Sonidos</label>
+    <label class="chk"><input id="cin" type="checkbox" checked> Escena de revelación</label>
+    <label for="dim">Oscuridad del fondo: <span id="dimv">50</span>%</label>
+    <input id="dim" type="range" min="0" max="95" value="50">
+    <label for="pa">Opacidad de paneles: <span id="pav">90</span>%</label>
+    <input id="pa" type="range" min="0" max="100" value="90">
+    <div id="warn"></div>
+    <div class="btns">
+      <button id="apply" class="alt">Aplicar y reiniciar</button>
+    </div>
+  </section>
+  <section class="stage">
+    <div class="wheelbox">
+      <div class="pointer"></div>
+      <canvas id="wheel" width="1100" height="1100"></canvas>
+      <div class="hub">GIRAR</div>
+    </div>
+    <div id="status">&nbsp;</div>
+    <div class="btns">
+      <button id="spin">Girar ruleta</button>
+      <button id="auto" class="alt">Sortear todo</button>
+    </div>
+  </section>
+  <div id="groups"></div>
+</main>
+
+<div id="cine"><div class="q">?</div><div class="big"></div><div class="nm"></div><div class="gp"></div></div>
+<canvas id="confetti"></canvas>
+
+<script>
+const $ = id => document.getElementById(id);
+const cv = $('wheel'), ctx = cv.getContext('2d');
+const EXTS = ['png','webp','jpg','jpeg','svg'];
+const COLORS = ['#1d3f73','#2559a3','#1f4a8a','#17335d'];
+let pool = [], groups = [], rot = 0, busy = false, placed = 0;
+
+function loadImg(src){return new Promise(res=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>res(null);i.src=src})}
+async function resolveLogo(t){
+  const cands = t.file ? [t.file.includes('/')?t.file:'images/clubs/'+t.file]
+                       : EXTS.map(e=>`images/clubs/${t.name}.${e}`);
+  for(const c of cands){const i=await loadImg(c); if(i){t.img=i;t.src=c;return}}
+}
+const gname = i => i<26 ? String.fromCharCode(65+i) : String(i+1);
+function badge(t,cls){
+  if(t.src){const i=document.createElement('img');i.src=t.src;i.className='logo';return i}
+  const d=document.createElement('div');d.className='ini';
+  d.textContent=t.name.split(/\s+/).map(w=>w[0]).join('').slice(0,3).toUpperCase();return d;
+}
+
+async function setup(){
+  const lines = $('list').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  pool = lines.map(l=>{const [n,f]=l.split('|').map(s=>s.trim());return {name:n,file:f||''}});
+  const per = Math.max(1,+$('perGroup').value||1), ng = Math.max(1,+$('nGroups').value||1);
+  $('warn').textContent = per*ng < pool.length
+    ? `Faltan ${pool.length-per*ng} lugares: sube los grupos o los equipos por grupo.` : '';
+  groups = Array.from({length:ng},()=>[]); placed = 0; rot = 0;
+  $('status').innerHTML = '&nbsp;';
+  renderGroups(per);
+  $('spin').disabled = $('auto').disabled = true;
+  $('status').textContent = 'Cargando logos…';
+  await Promise.all(pool.map(resolveLogo));
+  $('status').innerHTML = '&nbsp;';
+  $('spin').disabled = $('auto').disabled = !pool.length;
+  draw();
+}
+
+function renderGroups(per){
+  const box = $('groups'); box.innerHTML='';
+  groups.forEach((g,gi)=>{
+    const d=document.createElement('div');d.className='group';
+    d.innerHTML=`<h3>Grupo ${gname(gi)}</h3>`+Array.from({length:per},()=>'<div class="slot"><div class="ph"></div></div>').join('');
+    box.appendChild(d);
+  });
+}
+
+function draw(){
+  const W=cv.width, C=W/2, R=C-12, N=pool.length;
+  ctx.clearRect(0,0,W,W);
+  if(!N){ctx.fillStyle='#8fa3bf';ctx.font='700 40px Inter';ctx.textAlign='center';ctx.fillText('Sin equipos en la ruleta',C,C);return}
+  const seg=2*Math.PI/N;
+  pool.forEach((t,i)=>{
+    const a=rot+i*seg;
+    ctx.beginPath();ctx.moveTo(C,C);ctx.arc(C,C,R,a,a+seg);ctx.closePath();
+    ctx.fillStyle=COLORS[i%COLORS.length];ctx.fill();
+    ctx.strokeStyle='#0a1424';ctx.lineWidth=3;ctx.stroke();
+    ctx.save();ctx.translate(C,C);ctx.rotate(a+seg/2);
+    const arc=seg*R*0.62, size=Math.min(96,arc*0.9);
+    if(size>=18){
+      if(t.img){ctx.drawImage(t.img,R-size-18,-size/2,size,size)}
+      else{ctx.beginPath();ctx.arc(R-size/2-18,0,size/2,0,7);ctx.fillStyle='#284066';ctx.fill();
+        ctx.fillStyle='#eef3ee';ctx.font=`700 ${size*.4}px Inter`;ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText(t.name.split(/\s+/).map(w=>w[0]).join('').slice(0,3).toUpperCase(),R-size/2-18,0)}
+    }
+    const fs=Math.max(14,Math.min(34,arc*0.45));
+    if(arc>=20){
+      ctx.fillStyle='#eef3ee';ctx.font=`600 ${fs}px Inter`;ctx.textAlign='right';ctx.textBaseline='middle';
+      let label=t.name;const maxW=R*0.5;
+      while(ctx.measureText(label).width>maxW&&label.length>3)label=label.slice(0,-2);
+      if(label!==t.name)label+='…';
+      ctx.fillText(label,R-size-32,0);
+    }
+    ctx.restore();
+  });
+  ctx.beginPath();ctx.arc(C,C,R,0,7);ctx.strokeStyle='#f4c430';ctx.lineWidth=8;ctx.stroke();
+}
+
+function pickGroup(){
+  const per=+$('perGroup').value;
+  const open=groups.map((g,i)=>i).filter(i=>groups[i].length<per);
+  if(!open.length)return -1;
+  if($('mode').value==='order'){
+    const n=groups.length;
+    for(let k=0;k<n;k++){const i=(placed+k)%n;if(groups[i].length<per)return i}
+  }
+  return open[Math.floor(Math.random()*open.length)];
+}
+
+function spin(onNear){
+  return new Promise(res=>{
+    const N=pool.length, seg=2*Math.PI/N, idx=Math.floor(Math.random()*N);
+    const jitter=(Math.random()-.5)*.7;
+    const target=-Math.PI/2-(idx+.5+jitter)*seg;
+    const two=2*Math.PI;
+    let delta=(((target-rot)%two)+two)%two+two*(5+Math.floor(Math.random()*3));
+    const start=rot, dur=+$('dur').value*1000, t0=performance.now();
+    let last=-1, lastT=0, fired=false;
+    (function step(now){
+      const p=Math.min(1,(now-t0)/dur), e=1-Math.pow(1-p,4);
+      rot=start+delta*e;draw();
+      const cur=Math.floor(((((-Math.PI/2-rot)%two)+two)%two)/seg)%N;
+      if(cur!==last){last=cur;if(now-lastT>35){lastT=now;snd('tick')}}
+      if(!fired&&onNear&&dur-(now-t0)<=Math.min(2200,dur*.5)){fired=true;onNear(idx)}
+      p<1?requestAnimationFrame(step):res(idx);
+    })(t0);
+  });
+}
+
+// ---------- SONIDO ----------
+// Si existe sounds/<nombre>.mp3 se usa ese archivo; si no, suena uno sintetizado.
+// Nombres: tick (cada segmento que pasa), spin (al empezar a girar), suspense (antes de revelar), reveal (al revelar)
+let AC=null;
+const ac=()=>{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();return AC};
+const files={};
+['tick','spin','suspense','reveal'].forEach(n=>{const a=new Audio('sounds/'+n+'.mp3');a.preload='auto';a.addEventListener('canplaythrough',()=>files[n]=a,{once:true})});
+function tone(c,v,f,s,d,type,vol){const t=c.currentTime,o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.value=f;
+  g.gain.setValueAtTime(.001,t+s);g.gain.exponentialRampToValueAtTime(vol*v,t+s+.02);g.gain.exponentialRampToValueAtTime(.001,t+s+d);
+  o.connect(g).connect(c.destination);o.start(t+s);o.stop(t+s+d+.05)}
+function thump(c,v,s){const t=c.currentTime+s,o=c.createOscillator(),g=c.createGain();o.frequency.setValueAtTime(90,t);o.frequency.exponentialRampToValueAtTime(40,t+.15);
+  g.gain.setValueAtTime(.6*v,t);g.gain.exponentialRampToValueAtTime(.001,t+.2);o.connect(g).connect(c.destination);o.start(t);o.stop(t+.25)}
+const synth={
+  tick(c,v){tone(c,v,900,0,.05,'square',.08)},
+  suspense(c,v){const t=c.currentTime,o=c.createOscillator(),g=c.createGain();
+    o.type='sawtooth';o.frequency.setValueAtTime(60,t);o.frequency.exponentialRampToValueAtTime(500,t+2.5);
+    g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.16*v,t+2.4);g.gain.linearRampToValueAtTime(0,t+2.55);
+    o.connect(g).connect(c.destination);o.start(t);o.stop(t+2.6);
+    [0,.5,1,1.4,1.75,2.0,2.25].forEach(s=>{thump(c,v,s);thump(c,v,s+.14)})},
+  reveal(c,v){const t=c.currentTime;
+    [523,659,784].forEach((f,i)=>tone(c,v,f,i*.1,.25,'square',.12));
+    [523,659,784,1047].forEach(f=>tone(c,v,f,.35,1.6,'sawtooth',.09));
+    tone(c,v,130,0,1.2,'sine',.4);
+    const len=c.sampleRate,b=c.createBuffer(1,len,c.sampleRate),d=b.getChannelData(0);
+    for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*(1-i/len);
+    const s=c.createBufferSource(),h=c.createBiquadFilter(),g=c.createGain();
+    h.type='highpass';h.frequency.value=3000;g.gain.value=.25*v;s.buffer=b;s.connect(h).connect(g).connect(c.destination);s.start(t)}
+};
+function snd(n){
+  if(!$('sfx').checked)return;
+  const v=+$('vol').value/100;
+  if(files[n]){const a=n==='tick'?files[n].cloneNode():files[n];a.volume=v;a.currentTime=0;a.play().catch(()=>{});return}
+  if(synth[n])synth[n](ac(),v);
+}
+
+// ---------- CONFETI ----------
+const cf=$('confetti'),cx=cf.getContext('2d');let parts=[],raf=0;
+function confetti(){
+  cf.width=innerWidth;cf.height=innerHeight;
+  const cols=['#f4c430','#eef3ee','#3b82f6','#ff6b4a','#4ac3ff'];
+  const burst=(x,dir)=>{for(let i=0;i<90;i++){const a=-Math.PI/2+dir*Math.random()*.9,sp=12+Math.random()*16;
+    parts.push({x,y:cf.height,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,w:6+Math.random()*8,h:4+Math.random()*6,r:Math.random()*6,vr:(Math.random()-.5)*.4,c:cols[i%cols.length],life:0})}};
+  burst(0,1);burst(cf.width,-1);
+  setTimeout(()=>{burst(cf.width*.3,.35);burst(cf.width*.7,-.35)},650);
+  if(!raf)raf=requestAnimationFrame(loop);
+}
+function loop(){
+  cx.clearRect(0,0,cf.width,cf.height);
+  for(const p of parts){p.vy+=.35;p.vx*=.99;p.vy*=.99;p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;p.life++;
+    cx.save();cx.translate(p.x,p.y);cx.rotate(p.r);cx.fillStyle=p.c;cx.fillRect(-p.w/2,-p.h/2,p.w,p.h);cx.restore()}
+  parts=parts.filter(p=>p.y<cf.height+20&&p.life<300);
+  raf=parts.length?requestAnimationFrame(loop):0;
+  if(!raf)cx.clearRect(0,0,cf.width,cf.height);
+}
+
+// ---------- ESCENA DE REVELACIÓN ----------
+const SUSP=2600; // ms desde que empieza el negro hasta el reveal
+async function cinematic(t,gi){
+  const c=$('cine'),big=c.querySelector('.big'),nm=c.querySelector('.nm'),gp=c.querySelector('.gp'),q=c.querySelector('.q');
+  big.className='big';big.innerHTML='';nm.className='nm';nm.textContent=t.name;gp.className='gp';gp.textContent='Grupo '+gname(gi);q.style.display='';
+  c.style.setProperty('--fd','1.6s');c.classList.add('on');
+  snd('suspense');
+  await sleep(SUSP);
+  q.style.display='none';
+  big.append(badge(t));big.classList.add('show');
+  snd('reveal');confetti();
+  await sleep(500);nm.classList.add('show');
+  await sleep(500);gp.classList.add('show');
+  await sleep(2800);
+  c.style.setProperty('--fd','.6s');c.classList.remove('on');
+  await sleep(650);
+}
+
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+
+async function fly(t,gi,slotEl){
+  const wr=cv.getBoundingClientRect(), sr=slotEl.querySelector('.ph').getBoundingClientRect();
+  const f=document.createElement('div');f.className='fly';
+  const b=badge(t);f.appendChild(b);
+  const big=Math.min(150,wr.width*.28);
+  f.style.cssText+=`left:${wr.left+wr.width/2-big/2}px;top:${wr.top+wr.height/2-big/2}px;width:${big}px;height:${big}px;font-size:${big*.35}px`;
+  document.body.append(f);
+  await sleep(150);
+  f.style.left=sr.left+'px';f.style.top=sr.top+'px';f.style.width=f.style.height='30px';f.style.fontSize='12px';
+  await sleep(850);f.remove();
+}
+
+async function drawOne(){
+  if(busy||!pool.length)return false;
+  const gi0=pickGroup();
+  if(gi0<0){$('status').textContent='Todos los grupos están llenos';return false}
+  busy=true;$('spin').disabled=$('auto').disabled=true;
+  $('status').textContent='Girando…';
+  snd('spin');
+  let gi=-1, cinP=null;
+  const idx=await spin(i=>{if($('cin').checked){gi=pickGroup();$('status').textContent='…';cinP=cinematic(pool[i],gi)}});
+  const t=pool[idx];
+  if(cinP)await cinP;else gi=pickGroup();
+  $('status').textContent=`${t.name} → Grupo ${gname(gi)}`;
+  const slot=document.querySelectorAll('.group')[gi].querySelectorAll('.slot')[groups[gi].length];
+  await fly(t,gi,slot);
+  groups[gi].push(t);placed++;
+  slot.innerHTML='';slot.append(badge(t));
+  const s=document.createElement('span');s.textContent=t.name;slot.append(s);
+  pool.splice(idx,1);draw();
+  busy=false;
+  const more=pool.length>0&&pickGroup()>=0;
+  $('spin').disabled=$('auto').disabled=!more;
+  if(!pool.length)$('status').textContent='¡Sorteo completo!';
+  return more;
+}
+
+$('spin').onclick=drawOne;
+$('auto').onclick=async()=>{while(await drawOne()){await sleep(300)}};
+$('apply').onclick=()=>{if(!busy)setup()};
+$('dim').oninput=e=>{$('dimv').textContent=e.target.value;document.documentElement.style.setProperty('--dim',e.target.value/100)};
+$('pa').oninput=e=>{$('pav').textContent=e.target.value;document.documentElement.style.setProperty('--pa',e.target.value/100)};
+$('vol').oninput=e=>$('volv').textContent=e.target.value;
+$('dur').oninput=e=>$('durv').textContent=e.target.value;
+$('list').addEventListener('input',()=>{const n=$('list').value.split('\n').filter(s=>s.trim()).length;const per=+$('perGroup').value||1;$('nGroups').value=Math.ceil(n/per)||1});
+$('perGroup').addEventListener('input',()=>{const n=$('list').value.split('\n').filter(s=>s.trim()).length;const per=+$('perGroup').value||1;$('nGroups').value=Math.ceil(n/per)||1});
+// Fondo: images/fondo.png (o .webp, .jpg, .jpeg, .svg)
+(async()=>{for(const e of EXTS){const u=`images/fondo.${e}`;if(await loadImg(u)){
+  Object.assign(document.body.style,{backgroundImage:`url(${u})`,backgroundSize:'cover',backgroundPosition:'center',backgroundAttachment:'fixed',backgroundRepeat:'no-repeat'});break}}})();
+setup();
+</script>
+</body>
+</html>
